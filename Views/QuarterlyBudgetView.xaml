@@ -1,0 +1,173 @@
+﻿<UserControl x:Class="Wpf_Budgetplanerare.Views.QuarterlyBudgetView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Margin="10" Grid.IsSharedSizeScope="True">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel>
+                <TextBlock Text="Quarterly"
+                           FontSize="16"
+                           FontWeight="Bold"/>
+
+                <TextBlock Text="{Binding CurrentPeriodText}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Opacity="0.85"
+                           Margin="0,2,0,0"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="Quarter:" Opacity="0.7" VerticalAlignment="Center"/>
+                    <DatePicker SelectedDate="{Binding SelectedMonth}"
+                                Margin="8,0,0,0"
+                                Width="140"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Pen icon: edit/save -->
+            <Button Grid.Column="1"
+                    Width="34"
+                    Height="34"
+                    Content="✎"
+                    Command="{Binding ToggleEditCommand}"
+                    VerticalAlignment="Top"
+                    ToolTip="Edit / Save"/>
+        </Grid>
+
+        <!-- SUMMARY -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Total quarterly budget -->
+            <Border Grid.Column="0"
+                    Padding="12"
+                    CornerRadius="8"
+                    Background="White"
+                    BorderBrush="#DDD"
+                    BorderThickness="1">
+                <StackPanel>
+                    <TextBlock
+                               Opacity="0.75"
+                               FontSize="12"><Run Text="Total"/><Run Language="sv-se" Text=" Kr"/></TextBlock>
+
+                    <TextBlock Text="{Binding TotalBudget, StringFormat={}{0:N2} kr}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Remaining -->
+            <Border Grid.Column="2"
+                    Padding="12"
+                    CornerRadius="8"
+                    Background="White"
+                    BorderBrush="#DDD"
+                    BorderThickness="1">
+                <StackPanel>
+                    <TextBlock
+                               Opacity="0.75"
+                               FontSize="12"><Run Text="Remaining"/><Run Language="sv-se" Text=" Kr"/></TextBlock>
+
+                    <TextBlock Text="{Binding RemainingToAllocate, StringFormat={}{0:N2} kr}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0,6,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRemainingNegative}" Value="True">
+                                        <Setter Property="Foreground" Value="#C62828"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- LIST (filtered: show 0 only in edit mode) -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding BudgetRowsView}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,8"
+                                Padding="10"
+                                CornerRadius="8"
+                                Background="White"
+                                BorderBrush="#DDD"
+                                BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto" SharedSizeGroup="ValueCol"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Name}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,12,0"
+                                           VerticalAlignment="Center"/>
+
+                                <Grid Grid.Column="1" MinWidth="120" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding Amount, StringFormat={}{0:N2} kr}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding DataContext.IsEditMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                 Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <TextBox Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}"
+                                             MinHeight="26"
+                                             MinWidth="120"
+                                             HorizontalContentAlignment="Right"
+                                             VerticalContentAlignment="Center">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding DataContext.IsEditMode, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                 Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+    </Grid>
+</UserControl>

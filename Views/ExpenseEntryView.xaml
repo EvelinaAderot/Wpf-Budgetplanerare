@@ -1,0 +1,98 @@
+﻿<UserControl x:Class="Wpf_Budgetplanerare.Views.ExpenseEntryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Border Padding="12"
+            CornerRadius="8"
+            Background="White"
+            BorderBrush="#DDD"
+            BorderThickness="1">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- HEADER -->
+            <TextBlock Grid.Row="0"
+                       Text="Add expense / saving"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,10"/>
+
+            <!-- ItemType -->
+            <StackPanel Grid.Row="1" Margin="0,0,0,6">
+                <TextBlock Text="Type" Opacity="0.7"/>
+                <ComboBox ItemsSource="{Binding ItemTypes}"
+                          SelectedItem="{Binding SelectedItemType}"/>
+            </StackPanel>
+
+            <!-- Category -->
+            <StackPanel Grid.Row="2" Margin="0,0,0,6">
+                <TextBlock Text="Category" Opacity="0.7"/>
+                <ComboBox ItemsSource="{Binding FilteredCategories}"
+                          DisplayMemberPath="Name"
+                          SelectedItem="{Binding SelectedCategory}"/>
+            </StackPanel>
+
+            <!-- Date -->
+            <StackPanel Grid.Row="3" Margin="0,0,0,6">
+                <TextBlock Text="Date" Opacity="0.7"/>
+                <DatePicker SelectedDate="{Binding SelectedDate}"/>
+            </StackPanel>
+
+            <!-- Recurrence -->
+            <StackPanel Grid.Row="4" Margin="0,0,0,6">
+                <TextBlock Text="Recurrence" Opacity="0.7"/>
+                <ComboBox ItemsSource="{Binding RecurrenceTypes}"
+                          SelectedItem="{Binding SelectedRecurrenceType}"/>
+            </StackPanel>
+
+            <!-- End month (only if Monthly) -->
+            <StackPanel Grid.Row="5" Margin="0,0,0,6">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedRecurrenceType}"
+                                         Value="Monthly">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+
+                <TextBlock Text="Repeat until" Opacity="0.7"/>
+                <DatePicker SelectedDate="{Binding EndMonth}"/>
+            </StackPanel>
+
+            <!-- Budget source -->
+            <StackPanel Grid.Row="6" Margin="0,0,0,6">
+                <TextBlock Text="Budget source" Opacity="0.7"/>
+                <ComboBox ItemsSource="{Binding BudgetSources}"
+                          SelectedItem="{Binding SelectedBudgetSource}"/>
+            </StackPanel>
+
+            <!-- Amount -->
+            <StackPanel Grid.Row="7" Margin="0,0,0,10">
+                <TextBlock Text="Amount (kr)" Opacity="0.7"/>
+                <TextBox Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}"
+                         HorizontalContentAlignment="Right"/>
+            </StackPanel>
+
+            <!-- SAVE -->
+            <Button Grid.Row="8"
+                    Content="Save"
+                    Command="{Binding SaveCommand}"
+                    HorizontalAlignment="Right"
+                    Width="80"/>
+        </Grid>
+    </Border>
+</UserControl>

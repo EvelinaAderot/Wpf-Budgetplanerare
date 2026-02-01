@@ -1,0 +1,49 @@
+﻿<UserControl x:Class="Wpf_Budgetplanerare.Views.TransactionsTableView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Border Padding="10"
+            Background="White"
+            BorderBrush="#DDD"
+            BorderThickness="1"
+            CornerRadius="8">
+
+        <DataGrid ItemsSource="{Binding Transactions}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal">
+
+            <DataGrid.Columns>
+
+                <!-- Category -->
+                <DataGridTextColumn Header="Category"
+                                    Binding="{Binding CategoryName}"
+                                    Width="*"/>
+
+                <!-- Type -->
+                <DataGridTextColumn Header="Type"
+                                    Binding="{Binding ItemType}"
+                                    Width="100"/>
+
+                <!-- Date -->
+                <DataGridTextColumn Header="Date"
+                                    Binding="{Binding TransactionDate, StringFormat=yyyy-MM-dd}"
+                                    Width="120"/>
+
+                <!-- Amount -->
+                <DataGridTextColumn Header="Amount"
+                                    Binding="{Binding Amount, StringFormat={}{0:N2} kr}"
+                                    Width="120">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+            </DataGrid.Columns>
+        </DataGrid>
+
+    </Border>
+</UserControl>
