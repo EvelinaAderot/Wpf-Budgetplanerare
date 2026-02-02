@@ -4,7 +4,9 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +16,9 @@ using Wpf_Budgetplanerare.ViewModels.Base;
 
 namespace Wpf_Budgetplanerare.ViewModels
 {
-    public class YearlyBudgetViewModel : ViewModelBase
+    public class YearlyBudgetViewModel : ViewModelBase, IDisposable
     {
-        private readonly BudgetDbContext _db;
+        private readonly Func<BudgetDbContext> _dbFactory;
         private readonly int _userId;
 
         public ObservableCollection<BudgetRowVM> BudgetRows { get; } = new();
@@ -32,7 +34,7 @@ namespace Wpf_Budgetplanerare.ViewModels
                 if (SetProperty(ref _selectedMonth, normalized))
                 {
                     OnPropertyChanged(nameof(CurrentPeriodText));
-                    _ = ReloadAsync();
+                    _ = ReloadAsyncSafe();
                 }
             }
         }
@@ -47,6 +49,17 @@ namespace Wpf_Budgetplanerare.ViewModels
             {
                 if (SetProperty(ref _isEditMode, value))
                     BudgetRowsView.Refresh();
+            }
+        }
+
+        private bool _isBusy;
+        public bool IsBusy
+        {
+            get => _isBusy;
+            private set
+            {
+                if (SetProperty(ref _isBusy, value))
+                    (ToggleEditCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
 
@@ -67,19 +80,35 @@ namespace Wpf_Budgetplanerare.ViewModels
         public decimal RemainingToAllocate => TotalBudget - DistributedTotal;
         public bool IsRemainingNegative => RemainingToAllocate < 0;
 
-        public YearlyBudgetViewModel(BudgetDbContext db, int userId)
+        private readonly SemaphoreSlim _opGate = new(1, 1);
+        private CancellationTokenSource? _reloadCts;
+        private bool _isDisposed;
+
+        public YearlyBudgetViewModel(Func<BudgetDbContext> dbFactory, int userId)
         {
-            _db = db;
+            _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
             _userId = userId;
 
-            ToggleEditCommand = new RelayCommand(async () => await ToggleEditAsync());
+            ToggleEditCommand = new RelayCommand(async () => await ToggleEditAsync(), () => !IsBusy);
 
             BudgetRowsView = CollectionViewSource.GetDefaultView(BudgetRows);
             BudgetRowsView.Filter = BudgetRowFilter;
 
             BudgetRows.CollectionChanged += BudgetRows_CollectionChanged;
 
-            _ = ReloadAsync();
+            _ = ReloadAsyncSafe();
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed) return;
+            _isDisposed = true;
+
+            try { BudgetRows.CollectionChanged -= BudgetRows_CollectionChanged; } catch { }
+
+            try { _reloadCts?.Cancel(); } catch { }
+            try { _reloadCts?.Dispose(); } catch { }
+            _reloadCts = null;
         }
 
         private static DateTime GetYearStart(DateTime month) => new DateTime(month.Year, 1, 1);
@@ -123,114 +152,167 @@ namespace Wpf_Budgetplanerare.ViewModels
 
         private async Task ToggleEditAsync()
         {
-            if (IsEditMode)
+            if (IsBusy) return;
+
+            try
             {
-                await SaveAsync();
-                IsEditMode = false;
+                IsBusy = true;
+
+                if (IsEditMode)
+                {
+                    await SaveAsync();
+                    IsEditMode = false;
+                }
+                else
+                {
+                    IsEditMode = true;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                IsEditMode = true;
+                MessageBox.Show(ex.ToString(), "Yearly edit/save failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
             }
         }
 
-        public async Task ReloadAsync()
+        private async Task ReloadAsyncSafe()
         {
-            foreach (var row in BudgetRows)
-                row.PropertyChanged -= Row_PropertyChanged;
+            if (_isDisposed) return;
 
-            BudgetRows.Clear();
+            try { _reloadCts?.Cancel(); } catch { }
+            _reloadCts = new CancellationTokenSource();
+            var ct = _reloadCts.Token;
 
-            var periodStart = GetYearStart(SelectedMonth);
-            var periodEnd = GetYearEnd(SelectedMonth);
-
-            // Total budget from Income (BudgetPlan) on periodStart
-            var plan = await _db.BudgetPlans
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.UserId == _userId && p.Month == periodStart);
-
-            TotalBudget = plan?.YearlyBudget ?? 0m;
-
-            var categories = await _db.Categories
-                .Where(c => c.ItemType == ItemType.Expense || c.ItemType == ItemType.Savings)
-                .OrderBy(c => c.ItemType)
-                .ThenBy(c => c.Name)
-                .ToListAsync();
-
-            var catIds = categories.Select(c => c.Id).ToList();
-
-            var existing = await _db.MonthlyBudgets
-                .Where(mb =>
-                    mb.UserId == _userId &&
-                    mb.Month == periodStart &&
-                    mb.EndMonth == periodEnd &&
-                    catIds.Contains(mb.CategoryId))
-                .ToListAsync();
-
-            foreach (var c in categories)
+            try
             {
-                var mb = existing.FirstOrDefault(x => x.CategoryId == c.Id);
-
-                BudgetRows.Add(new BudgetRowVM
-                {
-                    CategoryId = c.Id,
-                    Name = c.Name,
-                    Amount = mb?.Amount ?? 0m
-                });
+                IsBusy = true;
+                await ReloadAsync(ct);
             }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString(), "Yearly reload failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
 
-            BudgetRowsView.Refresh();
-            NotifyRemainingChanged();
+        public Task ReloadAsync() => ReloadAsync(CancellationToken.None);
+
+        private async Task ReloadAsync(CancellationToken ct)
+        {
+            await _opGate.WaitAsync(ct);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+
+                foreach (var row in BudgetRows)
+                    row.PropertyChanged -= Row_PropertyChanged;
+
+                BudgetRows.Clear();
+
+                var periodStart = GetYearStart(SelectedMonth);
+                var periodEnd = GetYearEnd(SelectedMonth);
+
+                await using var db = _dbFactory();
+
+                var plan = await db.BudgetPlans
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.UserId == _userId && p.Month == periodStart, ct);
+
+                TotalBudget = plan?.YearlyBudget ?? 0m;
+
+                var categories = await db.Categories
+                    .AsNoTracking()
+                    .Where(c => c.ItemType == ItemType.Expense || c.ItemType == ItemType.Savings)
+                    .OrderBy(c => c.ItemType)
+                    .ThenBy(c => c.Name)
+                    .ToListAsync(ct);
+
+                var catIds = categories.Select(c => c.Id).ToList();
+
+                var existing = await db.MonthlyBudgets
+                    .AsNoTracking()
+                    .Where(mb =>
+                        mb.UserId == _userId &&
+                        mb.Month == periodStart &&
+                        mb.EndMonth == periodEnd &&
+                        catIds.Contains(mb.CategoryId))
+                    .ToListAsync(ct);
+
+                foreach (var c in categories)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var mb = existing.FirstOrDefault(x => x.CategoryId == c.Id);
+
+                    BudgetRows.Add(new BudgetRowVM
+                    {
+                        CategoryId = c.Id,
+                        Name = c.Name,
+                        Amount = mb?.Amount ?? 0m
+                    });
+                }
+
+                BudgetRowsView.Refresh();
+                NotifyRemainingChanged();
+            }
+            finally
+            {
+                try { _opGate.Release(); } catch { }
+            }
         }
 
         private async Task SaveAsync()
         {
-            var periodStart = GetYearStart(SelectedMonth);
-            var periodEnd = GetYearEnd(SelectedMonth);
-
-            var catIds = BudgetRows.Select(r => r.CategoryId).ToList();
-
-            var existing = await _db.MonthlyBudgets
-                .Where(mb =>
-                    mb.UserId == _userId &&
-                    mb.Month == periodStart &&
-                    mb.EndMonth == periodEnd &&
-                    catIds.Contains(mb.CategoryId))
-                .ToListAsync();
-
-            _db.MonthlyBudgets.RemoveRange(existing);
-
-            foreach (var row in BudgetRows)
+            await _opGate.WaitAsync();
+            try
             {
-                if (row.Amount == 0m)
-                    continue;
+                var periodStart = GetYearStart(SelectedMonth);
+                var periodEnd = GetYearEnd(SelectedMonth);
 
-                _db.MonthlyBudgets.Add(new MonthlyBudget
+                var catIds = BudgetRows.Select(r => r.CategoryId).ToList();
+
+                await using var db = _dbFactory();
+
+                var existing = await db.MonthlyBudgets
+                    .Where(mb =>
+                        mb.UserId == _userId &&
+                        mb.Month == periodStart &&
+                        mb.EndMonth == periodEnd &&
+                        catIds.Contains(mb.CategoryId))
+                    .ToListAsync();
+
+                db.MonthlyBudgets.RemoveRange(existing);
+
+                foreach (var row in BudgetRows)
                 {
-                    UserId = _userId,
-                    CategoryId = row.CategoryId,
-                    Month = periodStart,
-                    EndMonth = periodEnd,
-                    Amount = row.Amount
-                });
+                    if (row.Amount == 0m)
+                        continue;
+
+                    db.MonthlyBudgets.Add(new MonthlyBudget
+                    {
+                        UserId = _userId,
+                        CategoryId = row.CategoryId,
+                        Month = periodStart,
+                        EndMonth = periodEnd,
+                        Amount = row.Amount
+                    });
+                }
+
+                await db.SaveChangesAsync();
+
+                BudgetRowsView.Refresh();
+                NotifyRemainingChanged();
             }
-
-            await _db.SaveChangesAsync();
-
-            BudgetRowsView.Refresh();
-            NotifyRemainingChanged();
-        }
-
-        public class BudgetRowVM : ViewModelBase
-        {
-            public int CategoryId { get; set; }
-            public string Name { get; set; } = string.Empty;
-
-            private decimal _amount;
-            public decimal Amount
+            finally
             {
-                get => _amount;
-                set => SetProperty(ref _amount, value);
+                try { _opGate.Release(); } catch { }
             }
         }
     }

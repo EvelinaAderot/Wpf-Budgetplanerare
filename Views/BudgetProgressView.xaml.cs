@@ -15,14 +15,13 @@ using System.Windows.Shapes;
 namespace Wpf_Budgetplanerare.Views
 {
     /// <summary>
-    /// Interaction logic for ExpenseEntryView.xaml
+    /// Interaction logic for BudgetProgressView.xaml
     /// </summary>
-    public partial class ExpenseEntryView : UserControl
+    public partial class BudgetProgressView : UserControl
     {
-        public ExpenseEntryView()
+        public BudgetProgressView()
         {
             InitializeComponent();
         }
-
     }
 }

@@ -1,6 +1,192 @@
 ﻿<UserControl x:Class="Wpf_Budgetplanerare.Views.ExpenseEntryView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
+
+    <UserControl.Resources>
+
+        <Style x:Key="RoundedTextBoxStyle" TargetType="TextBox">
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border CornerRadius="8"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RoundedComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Padding" Value="3,4"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border CornerRadius="8"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <Grid>
+                                    <!-- Selected item display (FIXED) -->
+                                    <ContentPresenter Margin="8,0,34,0"
+                                                      VerticalAlignment="Center"
+                                                      HorizontalAlignment="Left"
+                                                      Content="{TemplateBinding SelectedItem}"
+                                                      ContentTemplate="{TemplateBinding ItemTemplate}"
+                                                      ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                      ContentStringFormat="{TemplateBinding ItemStringFormat}"/>
+
+                                    <ToggleButton Focusable="False"
+                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                                  HorizontalAlignment="Right"
+                                                  Width="28"
+                                                  Background="Transparent"
+                                                  BorderThickness="0">
+                                        <TextBlock Text="▾"
+                                                   Opacity="0.7"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center"/>
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+
+                            <!-- Popup -->
+                            <Popup x:Name="PART_Popup"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade">
+                                <Border CornerRadius="8"
+                                        Background="White"
+                                        BorderBrush="#DDD"
+                                        BorderThickness="1"
+                                        Margin="0,4,0,0"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <ScrollViewer MaxHeight="220">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FixedDatePickerTextBoxStyle" TargetType="DatePickerTextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DatePickerTextBox">
+                        <ScrollViewer x:Name="PART_ContentHost"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RoundedDatePickerStyle" TargetType="DatePicker">
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DatePicker">
+                        <Grid>
+                            <Border CornerRadius="8"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="34"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" Padding="10,0" Background="Transparent">
+                                        <DatePickerTextBox x:Name="PART_TextBox"
+                                                           Style="{StaticResource FixedDatePickerTextBoxStyle}"
+                                                           VerticalContentAlignment="Center"/>
+                                    </Border>
+
+                                    <Button x:Name="PART_Button"
+                                            Grid.Column="1"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Focusable="False"
+                                            Content="📅"
+                                            Opacity="0.7"/>
+                                </Grid>
+                            </Border>
+
+                            <Popup x:Name="PART_Popup"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade">
+                                <Border CornerRadius="8"
+                                        Background="White"
+                                        BorderBrush="#DDD"
+                                        BorderThickness="1"
+                                        Margin="0,4,0,0">
+                                    <Calendar x:Name="PART_Calendar"/>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="Opacity" Value="0.7"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <Style x:Key="YearArrowButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="4"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
 
     <Border Padding="12"
             CornerRadius="8"
@@ -17,82 +203,244 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- HEADER -->
-            <TextBlock Grid.Row="0"
-                       Text="Add expense / saving"
-                       FontSize="14"
-                       FontWeight="SemiBold"
-                       Margin="0,0,0,10"/>
+            <!-- HEADER + SAVE -->
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <!-- ItemType -->
-            <StackPanel Grid.Row="1" Margin="0,0,0,6">
-                <TextBlock Text="Type" Opacity="0.7"/>
-                <ComboBox ItemsSource="{Binding ItemTypes}"
-                          SelectedItem="{Binding SelectedItemType}"/>
-            </StackPanel>
+                <TextBlock Grid.Column="0"
+                           Text="Add expense / saving"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
 
-            <!-- Category -->
-            <StackPanel Grid.Row="2" Margin="0,0,0,6">
-                <TextBlock Text="Category" Opacity="0.7"/>
-                <ComboBox ItemsSource="{Binding FilteredCategories}"
-                          DisplayMemberPath="Name"
-                          SelectedItem="{Binding SelectedCategory}"/>
-            </StackPanel>
+                <Button Grid.Column="1"
+                        Content="Save"
+                        Command="{Binding SaveCommand}"
+                        Width="90"
+                        Height="34"
+                        VerticalAlignment="Center"
+                        Margin="10,0,0,0"/>
+            </Grid>
 
-            <!-- Date -->
-            <StackPanel Grid.Row="3" Margin="0,0,0,6">
-                <TextBlock Text="Date" Opacity="0.7"/>
-                <DatePicker SelectedDate="{Binding SelectedDate}"/>
-            </StackPanel>
+            <!-- Type + Category -->
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-            <!-- Recurrence -->
-            <StackPanel Grid.Row="4" Margin="0,0,0,6">
-                <TextBlock Text="Recurrence" Opacity="0.7"/>
-                <ComboBox ItemsSource="{Binding RecurrenceTypes}"
-                          SelectedItem="{Binding SelectedRecurrenceType}"/>
-            </StackPanel>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Style="{StaticResource LabelStyle}" Text="Type"/>
+                    <ComboBox Style="{StaticResource RoundedComboBoxStyle}"
+                              ItemsSource="{Binding ExpenseEntryItemTypes}"
+                              SelectedItem="{Binding SelectedItemType}"/>
+                </StackPanel>
 
-            <!-- End month (only if Monthly) -->
-            <StackPanel Grid.Row="5" Margin="0,0,0,6">
-                <StackPanel.Style>
-                    <Style TargetType="StackPanel">
+                <StackPanel Grid.Column="2">
+                    <TextBlock Style="{StaticResource LabelStyle}" Text="Category"/>
+                    <ComboBox Style="{StaticResource RoundedComboBoxStyle}"
+                              ItemsSource="{Binding FilteredCategories}"
+                              DisplayMemberPath="Name"
+                              SelectedItem="{Binding SelectedCategory}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Date + Recurrence -->
+            <Grid Grid.Row="2" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Style="{StaticResource LabelStyle}" Text="Date"/>
+                    <DatePicker Style="{StaticResource RoundedDatePickerStyle}"
+                                SelectedDate="{Binding SelectedDate}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Style="{StaticResource LabelStyle}" Text="Recurrence"/>
+                    <ComboBox Style="{StaticResource RoundedComboBoxStyle}"
+                              ItemsSource="{Binding RecurrenceTypes}"
+                              SelectedItem="{Binding SelectedRecurrenceType}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- OPTIONS: Monthly / Yearly only -->
+            <Grid Grid.Row="3" Margin="0,0,0,10">
+                <Grid.Style>
+                    <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Collapsed"/>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding SelectedRecurrenceType}"
-                                         Value="Monthly">
+                            <DataTrigger Binding="{Binding SelectedRecurrenceType}" Value="Monthly">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding SelectedRecurrenceType}" Value="Yearly">
                                 <Setter Property="Visibility" Value="Visible"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
-                </StackPanel.Style>
+                </Grid.Style>
 
-                <TextBlock Text="Repeat until" Opacity="0.7"/>
-                <DatePicker SelectedDate="{Binding EndMonth}"/>
-            </StackPanel>
+                <!-- MONTHLY -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedRecurrenceType}" Value="Monthly">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <TextBlock Style="{StaticResource LabelStyle}" Text="Monthly ends at"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{StaticResource LabelStyle}" Text="End month"/>
+                            <ComboBox Style="{StaticResource RoundedComboBoxStyle}"
+                                      ItemsSource="{Binding MonthTypes}"
+                                      SelectedItem="{Binding MonthlyEndMonth}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Style="{StaticResource LabelStyle}" Text="End year"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="32"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                        Height="34"
+                                        CornerRadius="8"
+                                        BorderBrush="#DDD"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="10,0">
+                                    <TextBlock Text="{Binding MonthlyEndYear}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"/>
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Margin="4,0,0,0" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource YearArrowButtonStyle}"
+                                            Content="▲"
+                                            Command="{Binding IncreaseMonthlyEndYearCommand}"/>
+                                    <Button Style="{StaticResource YearArrowButtonStyle}"
+                                            Content="▼"
+                                            Margin="0,2,0,0"
+                                            Command="{Binding DecreaseMonthlyEndYearCommand}"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <!-- YEARLY -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedRecurrenceType}" Value="Yearly">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <TextBlock Style="{StaticResource LabelStyle}" Text="Yearly happens at"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{StaticResource LabelStyle}" Text="Payment month"/>
+                            <ComboBox Style="{StaticResource RoundedComboBoxStyle}"
+                                      ItemsSource="{Binding MonthTypes}"
+                                      SelectedItem="{Binding YearlyPaymentMonth}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Style="{StaticResource LabelStyle}" Text="End year"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="32"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0"
+                                        Height="34"
+                                        CornerRadius="8"
+                                        BorderBrush="#DDD"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="10,0">
+                                    <TextBlock Text="{Binding YearlyEndYear}"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Right"/>
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Margin="4,0,0,0" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource YearArrowButtonStyle}"
+                                            Content="▲"
+                                            Command="{Binding IncreaseYearlyEndYearCommand}"/>
+                                    <Button Style="{StaticResource YearArrowButtonStyle}"
+                                            Content="▼"
+                                            Margin="0,2,0,0"
+                                            Command="{Binding DecreaseYearlyEndYearCommand}"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Grid>
 
             <!-- Budget source -->
-            <StackPanel Grid.Row="6" Margin="0,0,0,6">
-                <TextBlock Text="Budget source" Opacity="0.7"/>
-                <ComboBox ItemsSource="{Binding BudgetSources}"
+            <StackPanel Grid.Row="4" Margin="0,0,0,10">
+                <TextBlock Style="{StaticResource LabelStyle}" Text="Budget source"/>
+                <ComboBox Style="{StaticResource RoundedComboBoxStyle}"
+                          ItemsSource="{Binding BudgetSources}"
                           SelectedItem="{Binding SelectedBudgetSource}"/>
             </StackPanel>
 
             <!-- Amount -->
-            <StackPanel Grid.Row="7" Margin="0,0,0,10">
-                <TextBlock Text="Amount (kr)" Opacity="0.7"/>
-                <TextBox Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}"
+            <StackPanel Grid.Row="5" Margin="0,0,0,10">
+                <TextBlock Style="{StaticResource LabelStyle}" Text="Amount (kr)"/>
+                <TextBox Style="{StaticResource RoundedTextBoxStyle}"
+                         Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}"
                          HorizontalContentAlignment="Right"/>
             </StackPanel>
 
-            <!-- SAVE -->
-            <Button Grid.Row="8"
-                    Content="Save"
-                    Command="{Binding SaveCommand}"
-                    HorizontalAlignment="Right"
-                    Width="80"/>
+            <!-- Note -->
+            <StackPanel Grid.Row="6">
+                <TextBlock Style="{StaticResource LabelStyle}" Text="Note"/>
+                <TextBox Style="{StaticResource RoundedTextBoxStyle}"
+                         Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
+
         </Grid>
     </Border>
 </UserControl>

@@ -36,7 +36,6 @@ namespace Wpf_Budgetplanerare.Data
         {
             base.OnModelCreating(modelBuilder);
 
-
             // =========================
             modelBuilder.Entity<BudgetPlan>(entity =>
             {
@@ -66,7 +65,6 @@ namespace Wpf_Budgetplanerare.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-
             modelBuilder.Entity<Item>(entity =>
             {
                 entity.HasKey(i => i.Id);
@@ -80,8 +78,8 @@ namespace Wpf_Budgetplanerare.Data
                 entity.Property(i => i.ItemType).IsRequired();
                 entity.Property(i => i.RecurrenceType).IsRequired();
 
-                entity.Property(i => i.YearlyMonth)
-                      .HasConversion<int?>();
+                // entity.Property(i => i.YearlyMonth)
+                //       .HasConversion<int?>();
 
                 entity.HasOne(i => i.Category)
                       .WithMany(c => c.Items)
@@ -105,7 +103,6 @@ namespace Wpf_Budgetplanerare.Data
                 entity.Property(c => c.ItemType)
                       .IsRequired();
             });
-
 
             modelBuilder.Entity<User>(entity =>
             {
@@ -131,7 +128,6 @@ namespace Wpf_Budgetplanerare.Data
                 entity.Property(a => a.DateInput).IsRequired();
                 entity.Property(a => a.Type).IsRequired();
             });
-
 
             modelBuilder.Entity<MonthlyBudget>(entity =>
             {

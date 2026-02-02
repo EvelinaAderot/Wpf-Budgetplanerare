@@ -12,8 +12,8 @@ using Wpf_Budgetplanerare.Data;
 namespace Wpf_Budgetplanerare.Migrations
 {
     [DbContext(typeof(BudgetDbContext))]
-    [Migration("20260201194419_Add")]
-    partial class Add
+    [Migration("20260202123652_A")]
+    partial class A
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -143,9 +143,6 @@ namespace Wpf_Budgetplanerare.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("YearlyMonth")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

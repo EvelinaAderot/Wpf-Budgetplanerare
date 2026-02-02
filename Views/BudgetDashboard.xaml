@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:Wpf_Budgetplanerare.Views"
         mc:Ignorable="d"
         Title="BudgetDashboard"
         Height="450"
@@ -17,8 +18,8 @@
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="5*"/>
-            <RowDefinition Height="4*"/>
+            <RowDefinition Height="3.5*"/>
+            <RowDefinition Height="3*"/>
             <RowDefinition Height="20*"/>
         </Grid.RowDefinitions>
 
@@ -27,6 +28,7 @@
                 Grid.Column="0"
                 Grid.ColumnSpan="2"
                 Margin="20,10"
+                Padding="0,8,0,0"
                 Background="{StaticResource SecondaryBrush}"
                 BorderBrush="{StaticResource PrimaryBrush}"
                 BorderThickness="1"
@@ -56,7 +58,7 @@
                                FontWeight="SemiBold"/>
                 </StackPanel>
 
-                <!-- BALANCE -->
+                <!-- BALANCE (Income ever - Expense ever) -->
                 <StackPanel Grid.Column="2" HorizontalAlignment="Center">
                     <TextBlock Text="Balance" Opacity="0.7" FontSize="12"/>
                     <TextBlock Text="{Binding Balance, StringFormat={}{0:N2} kr}"
@@ -64,12 +66,23 @@
                                FontWeight="SemiBold"/>
                 </StackPanel>
 
-                <!-- SPENT -->
+                <!-- PERIOD TOTALS (changes with section: month/quarter/year) -->
                 <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                    <TextBlock Text="Spent this month" Opacity="0.7" FontSize="12"/>
-                    <TextBlock Text="{Binding SpentThisMonth, StringFormat={}{0:N2} kr}"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding PeriodLabel}" Opacity="0.7" FontSize="12"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="In: " Opacity="0.7"/>
+                        <TextBlock Text="{Binding PeriodIncome, StringFormat={}{0:N2} kr}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="Out: " Opacity="0.7"/>
+                        <TextBlock Text="{Binding PeriodSpent, StringFormat={}{0:N2} kr}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>
@@ -124,6 +137,7 @@
             <ContentControl x:Name="LeftContent"/>
         </Border>
 
+        <!-- RIGHT SIDE (Transactions + Expense Entry) -->
         <Grid Grid.Row="2"
               Grid.Column="1"
               Margin="8,10,20,8">
@@ -133,11 +147,12 @@
                 <ColumnDefinition Width="8*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Placeholder / future content -->
-            <Rectangle Grid.Column="0"
-                       Margin="0,0,10,0"
-                       Fill="Transparent"/>
+            <!-- Transactions table -->
+            <views:TransactionsTableView x:Name="TransactionsTable"
+                                         Grid.Column="0"
+                                         Margin="0,0,10,0"/>
 
+            <!-- Expense entry container -->
             <Border Grid.Column="1"
                     Margin="10,0,0,0"
                     Background="{StaticResource SecondaryBrush}"

@@ -1,71 +1,73 @@
 ﻿<UserControl x:Class="Wpf_Budgetplanerare.Views.SavingsSummaryView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Height="104">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Height="104">
 
-    <Border Padding="12"
+    <Border Padding="10"
             CornerRadius="8"
             Background="White"
             BorderBrush="#DDD"
-            BorderThickness="1" Margin="0,0,0,26">
+            BorderThickness="1"
+            Margin="0,0,0,20">
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="17*"/>
-                <ColumnDefinition Width="67*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" MinHeight="15.64"/>
-                <RowDefinition Height="Auto" MinHeight="21"/>
-                <RowDefinition Height="Auto" MinHeight="33.32"/>
-            </Grid.RowDefinitions>
+        <StackPanel>
 
-            <TextBlock Grid.Row="0"
-                       Text="Savings added"
-                       FontSize="8"
+            <!-- Title -->
+            <TextBlock Text="Savings added"
+                       FontSize="10"
                        FontWeight="SemiBold"
-                       Margin="0,0,0,5" Grid.ColumnSpan="2"/>
+                       Opacity="0.75"
+                       Margin="0,0,0,3"/>
 
-            <!-- Labels -->
-            <Grid Grid.Row="1" Margin="0,0,0,4" Grid.ColumnSpan="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="14*"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="16*"/>
-                    <ColumnDefinition Width="44*"/>
-                    <ColumnDefinition Width="63*"/>
-                    <ColumnDefinition Width="47*"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Grid.Column="0" Text="Last month" Opacity="0.75" HorizontalAlignment="Center" Grid.ColumnSpan="2" Grid.RowSpan="2"/>
-                <TextBlock Grid.Column="2" Text="Last quarter" Opacity="0.75" HorizontalAlignment="Center" Grid.RowSpan="2"/>
-                <TextBlock Grid.Column="3" Text="Last year" Opacity="0.75" HorizontalAlignment="Center" Grid.RowSpan="2"/>
-            </Grid>
-
-            <!-- Values -->
-            <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,17">
+            <!-- Spread across full width -->
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0"
-                           Text="{Binding SavingsLastMonth, StringFormat={}{0:N2} kr}"
-                           FontWeight="SemiBold"
-                           HorizontalAlignment="Center"/>
+                <!-- Last month -->
+                <StackPanel Grid.Column="0"
+                            Orientation="Vertical"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="Last month"
+                               Opacity="0.7"
+                               FontSize="10"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding SavingsLastMonth, Mode=OneWay, StringFormat={}{0:N2} kr}"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
 
-                <TextBlock Grid.Column="1"
-                           Text="{Binding SavingsLastQuarter, StringFormat={}{0:N2} kr}"
-                           FontWeight="SemiBold"
-                           HorizontalAlignment="Center"/>
+                <!-- Last quarter -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Vertical"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="Last quarter"
+                               Opacity="0.7"
+                               FontSize="10"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding SavingsLastQuarter, Mode=OneWay, StringFormat={}{0:N2} kr}"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
 
-                <TextBlock Grid.Column="2"
-                           Text="{Binding SavingsLastYear, StringFormat={}{0:N2} kr}"
-                           FontWeight="SemiBold"
-                           HorizontalAlignment="Center"/>
+                <!-- Last year -->
+                <StackPanel Grid.Column="2"
+                            Orientation="Vertical"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="Last year"
+                               Opacity="0.7"
+                               FontSize="10"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding SavingsLastYear, Mode=OneWay, StringFormat={}{0:N2} kr}"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+
             </Grid>
-        </Grid>
+
+        </StackPanel>
     </Border>
 </UserControl>

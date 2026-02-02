@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Threading.Tasks;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using Wpf_Budgetplanerare.Data;
@@ -16,13 +16,31 @@ namespace Wpf_Budgetplanerare.Views
         private readonly BudgetDbContext _db;
         private readonly UserRepository _userRepo;
 
+        private BudgetDbContext? _monthlyDb;
+        private BudgetDbContext? _quarterlyDb;
+        private BudgetDbContext? _yearlyDb;
+        private BudgetDbContext? _incomeDb;
+        private BudgetDbContext? _savingsDb;
+        private BudgetDbContext? _expenseDb;
+
+        private BudgetDbContext? _transactionsDb;
+
         private IncomeBudgetView? _incomeView;
         private MonthlyBudgetView? _monthlyView;
         private QuarterlyBudgetView? _quarterlyView;
         private YearlyBudgetView? _yearlyView;
 
-        // ✅ Savings box in row 1 col 1
         private SavingsSummaryView? _savingsSummaryView;
+        private BudgetProgressView? _budgetProgressView;
+
+        private ExpenseEntryView? _expenseEntryView;
+        private ExpenseEntryViewModel? _expenseVm;
+
+        private MonthlyBudgetViewModel? _monthlyVm;
+        private QuarterlyBudgetViewModel? _quarterlyVm;
+        private YearlyBudgetViewModel? _yearlyVm;
+
+        private BudgetProgressViewModel? _progressVm;
 
         public BudgetDashboard()
         {
@@ -33,7 +51,116 @@ namespace Wpf_Budgetplanerare.Views
 
             DataContext = new BudgetDashboardViewModel(_db, _userRepo);
 
+            Loaded += BudgetDashboard_Loaded;
             UpdateSection();
+        }
+
+        private void BudgetDashboard_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is BudgetDashboardViewModel dashVm)
+            {
+                dashVm.PropertyChanged += DashVm_PropertyChanged;
+
+                EnsureExpenseEntryView();
+                EnsureTransactionsTableView();
+                UpdateSection();
+            }
+        }
+
+        private void DashVm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(BudgetDashboardViewModel.ActiveUser))
+            {
+                ResetCachedViewsAndContexts();
+
+                EnsureExpenseEntryView();
+                EnsureTransactionsTableView();
+                UpdateSection();
+            }
+        }
+
+        private void ResetCachedViewsAndContexts()
+        {
+            try { _progressVm?.Dispose(); } catch { /* ignore */ }
+            _progressVm = null;
+
+            _incomeView = null;
+            _monthlyView = null;
+            _quarterlyView = null;
+            _yearlyView = null;
+
+            _savingsSummaryView = null;
+            _budgetProgressView = null;
+
+            _expenseEntryView = null;
+            _expenseVm = null;
+
+            try { _monthlyVm?.Dispose(); } catch { /* ignore */ }
+            try { _quarterlyVm?.Dispose(); } catch { /* ignore */ }
+            try { _yearlyVm?.Dispose(); } catch { /* ignore */ }
+            _monthlyVm = null;
+            _quarterlyVm = null;
+            _yearlyVm = null;
+
+            DisposeAndNull(ref _monthlyDb);
+            DisposeAndNull(ref _quarterlyDb);
+            DisposeAndNull(ref _yearlyDb);
+            DisposeAndNull(ref _incomeDb);
+            DisposeAndNull(ref _savingsDb);
+            DisposeAndNull(ref _expenseDb);
+
+            // NEW
+            DisposeAndNull(ref _transactionsDb);
+        }
+
+        private static void DisposeAndNull(ref BudgetDbContext? ctx)
+        {
+            try { ctx?.Dispose(); }
+            catch { /* ignore dispose issues */ }
+            ctx = null;
+        }
+
+        private void EnsureTransactionsTableView()
+        {
+            if (TransactionsTable == null)
+                return;
+
+            if (DataContext is not BudgetDashboardViewModel dashVm || dashVm.ActiveUser == null)
+                return;
+
+            // Reset context so we always read newest values
+            DisposeAndNull(ref _transactionsDb);
+            _transactionsDb = new BudgetDbContext();
+
+            TransactionsTable.Init(_transactionsDb, dashVm.ActiveUser.Id);
+        }
+
+        private void EnsureExpenseEntryView()
+        {
+            if (RightBottomContent == null)
+                return;
+
+            if (DataContext is not BudgetDashboardViewModel dashVm || dashVm.ActiveUser == null)
+            {
+                RightBottomContent.Content = new TextBlock
+                {
+                    Text = "No active user.",
+                    FontSize = 14,
+                    Margin = new Thickness(10)
+                };
+                return;
+            }
+
+            _expenseEntryView ??= new ExpenseEntryView();
+            _expenseDb ??= new BudgetDbContext();
+
+            if (_expenseVm == null || _expenseEntryView.DataContext is not ExpenseEntryViewModel)
+            {
+                _expenseVm = new ExpenseEntryViewModel(_expenseDb, dashVm.ActiveUser.Id);
+                _expenseEntryView.DataContext = _expenseVm;
+            }
+
+            RightBottomContent.Content = _expenseEntryView;
         }
 
         private void Prev_Click(object sender, RoutedEventArgs e)
@@ -55,6 +182,20 @@ namespace Wpf_Budgetplanerare.Views
             if (SectionTitle != null)
                 SectionTitle.Text = section;
 
+            // Tell the dashboard VM which period is active (month/quarter/year)
+            if (DataContext is BudgetDashboardViewModel dashVm)
+            {
+                dashVm.ActivePeriodKind = section switch
+                {
+                    "Monthly" => DashboardPeriodKind.Monthly,
+                    "Quarterly" => DashboardPeriodKind.Quarterly,
+                    "Yearly" => DashboardPeriodKind.Yearly,
+                    _ => DashboardPeriodKind.Monthly
+                };
+
+                _ = dashVm.ReloadTotalsAsync();
+            }
+
             if (LeftContent == null)
                 return;
 
@@ -67,13 +208,24 @@ namespace Wpf_Budgetplanerare.Views
                 _ => new TextBlock { Text = "Unknown section", FontSize = 14, Margin = new Thickness(10) }
             };
 
-            // ✅ show savings summary only for Income
-            if (MiddleRightContent != null)
+            UpdateMiddleRightContent(section);
+            EnsureExpenseEntryView();
+            EnsureTransactionsTableView();
+        }
+
+        private void UpdateMiddleRightContent(string section)
+        {
+            if (MiddleRightContent == null)
+                return;
+
+            MiddleRightContent.Content = section switch
             {
-                MiddleRightContent.Content = section == "Income"
-                    ? CreateSavingsSummaryView()
-                    : null;
-            }
+                "Income" => CreateSavingsSummaryView(),
+                "Monthly" => CreateBudgetProgressView(BudgetPeriodKind.Monthly),
+                "Quarterly" => CreateBudgetProgressView(BudgetPeriodKind.Quarterly),
+                "Yearly" => CreateBudgetProgressView(BudgetPeriodKind.Yearly),
+                _ => null
+            };
         }
 
         private FrameworkElement NoActiveUser()
@@ -91,10 +243,13 @@ namespace Wpf_Budgetplanerare.Views
             if (DataContext is not BudgetDashboardViewModel dashVm || dashVm.ActiveUser == null)
                 return NoActiveUser();
 
-            _monthlyView ??= new MonthlyBudgetView
+            if (_monthlyView == null)
             {
-                DataContext = new MonthlyBudgetViewModel(_db, dashVm.ActiveUser.Id)
-            };
+                _monthlyDb ??= new BudgetDbContext();
+
+                _monthlyVm = new MonthlyBudgetViewModel(() => new BudgetDbContext(), dashVm.ActiveUser.Id);
+                _monthlyView = new MonthlyBudgetView { DataContext = _monthlyVm };
+            }
 
             return _monthlyView;
         }
@@ -104,10 +259,13 @@ namespace Wpf_Budgetplanerare.Views
             if (DataContext is not BudgetDashboardViewModel dashVm || dashVm.ActiveUser == null)
                 return NoActiveUser();
 
-            _quarterlyView ??= new QuarterlyBudgetView
+            if (_quarterlyView == null)
             {
-                DataContext = new QuarterlyBudgetViewModel(_db, dashVm.ActiveUser.Id)
-            };
+                _quarterlyDb ??= new BudgetDbContext();
+
+                _quarterlyVm = new QuarterlyBudgetViewModel(() => new BudgetDbContext(), dashVm.ActiveUser.Id);
+                _quarterlyView = new QuarterlyBudgetView { DataContext = _quarterlyVm };
+            }
 
             return _quarterlyView;
         }
@@ -117,10 +275,13 @@ namespace Wpf_Budgetplanerare.Views
             if (DataContext is not BudgetDashboardViewModel dashVm || dashVm.ActiveUser == null)
                 return NoActiveUser();
 
-            _yearlyView ??= new YearlyBudgetView
+            if (_yearlyView == null)
             {
-                DataContext = new YearlyBudgetViewModel(_db, dashVm.ActiveUser.Id)
-            };
+                _yearlyDb ??= new BudgetDbContext();
+
+                _yearlyVm = new YearlyBudgetViewModel(() => new BudgetDbContext(), dashVm.ActiveUser.Id);
+                _yearlyView = new YearlyBudgetView { DataContext = _yearlyVm };
+            }
 
             return _yearlyView;
         }
@@ -132,22 +293,16 @@ namespace Wpf_Budgetplanerare.Views
 
             if (_incomeView == null)
             {
-                var incomeVm = new IncomeBudgetViewModel(_db, dashVm.ActiveUser.Id);
+                _incomeDb ??= new BudgetDbContext();
+                var incomeVm = new IncomeBudgetViewModel(_incomeDb, dashVm.ActiveUser.Id);
 
-                // ✅ when Income saves: refresh top + savings summary
                 incomeVm.Saved += async () =>
                 {
                     if (DataContext is BudgetDashboardViewModel dvm)
                         await dvm.ReloadAsync();
-
-                    if (_savingsSummaryView?.DataContext is SavingsSummaryViewModel svm)
-                        await svm.ReloadAsync();
                 };
 
-                _incomeView = new IncomeBudgetView
-                {
-                    DataContext = incomeVm
-                };
+                _incomeView = new IncomeBudgetView { DataContext = incomeVm };
             }
 
             return _incomeView;
@@ -160,25 +315,87 @@ namespace Wpf_Budgetplanerare.Views
 
             if (_savingsSummaryView == null)
             {
+                _savingsDb ??= new BudgetDbContext();
                 _savingsSummaryView = new SavingsSummaryView
                 {
-                    DataContext = new SavingsSummaryViewModel(_db, dashVm.ActiveUser.Id)
+                    DataContext = new SavingsSummaryViewModel(_savingsDb, dashVm.ActiveUser.Id)
                 };
             }
 
-            _ = RefreshSavingsSummaryAsync();
             return _savingsSummaryView;
         }
 
-        private async Task RefreshSavingsSummaryAsync()
+        private FrameworkElement CreateBudgetProgressView(BudgetPeriodKind kind)
         {
-            if (_savingsSummaryView?.DataContext is SavingsSummaryViewModel vm)
-                await vm.ReloadAsync();
+            if (DataContext is not BudgetDashboardViewModel dashVm || dashVm.ActiveUser == null)
+                return NoActiveUser();
+
+            _budgetProgressView ??= new BudgetProgressView();
+
+            // Ensure the left VM exists BEFORE wiring progress to it
+            switch (kind)
+            {
+                case BudgetPeriodKind.Monthly:
+                    CreateMonthlyView();
+                    break;
+                case BudgetPeriodKind.Quarterly:
+                    CreateQuarterlyView();
+                    break;
+                case BudgetPeriodKind.Yearly:
+                    CreateYearlyView();
+                    break;
+            }
+
+            INotifyPropertyChanged? periodSource = kind switch
+            {
+                BudgetPeriodKind.Monthly => _monthlyVm,
+                BudgetPeriodKind.Quarterly => _quarterlyVm,
+                BudgetPeriodKind.Yearly => _yearlyVm,
+                _ => null
+            };
+
+            try { _progressVm?.Dispose(); } catch { /* ignore */ }
+            _progressVm = null;
+
+            _progressVm = new BudgetProgressViewModel(
+                dbFactory: () => new BudgetDbContext(),
+                userId: dashVm.ActiveUser.Id,
+                periodKind: kind,
+                periodSourceVm: periodSource,
+                periodSourcePropertyName: "SelectedMonth"
+            );
+
+            _budgetProgressView.DataContext = _progressVm;
+            return _budgetProgressView;
         }
 
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
+
+            if (DataContext is BudgetDashboardViewModel dashVm)
+                dashVm.PropertyChanged -= DashVm_PropertyChanged;
+
+            Loaded -= BudgetDashboard_Loaded;
+
+            try { _progressVm?.Dispose(); } catch { /* ignore */ }
+            _progressVm = null;
+
+            try { _monthlyVm?.Dispose(); } catch { /* ignore */ }
+            try { _quarterlyVm?.Dispose(); } catch { /* ignore */ }
+            try { _yearlyVm?.Dispose(); } catch { /* ignore */ }
+            _monthlyVm = null;
+            _quarterlyVm = null;
+            _yearlyVm = null;
+
+            DisposeAndNull(ref _monthlyDb);
+            DisposeAndNull(ref _quarterlyDb);
+            DisposeAndNull(ref _yearlyDb);
+            DisposeAndNull(ref _incomeDb);
+            DisposeAndNull(ref _savingsDb);
+            DisposeAndNull(ref _expenseDb);
+            DisposeAndNull(ref _transactionsDb);
+
             _db.Dispose();
         }
     }

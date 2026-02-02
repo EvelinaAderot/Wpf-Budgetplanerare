@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Wpf_Budgetplanerare.Migrations
 {
     /// <inheritdoc />
-    public partial class Add : Migration
+    public partial class A : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -103,7 +103,6 @@ namespace Wpf_Budgetplanerare.Migrations
                     TransactionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ItemType = table.Column<int>(type: "int", nullable: false),
                     RecurrenceType = table.Column<int>(type: "int", nullable: false),
-                    YearlyMonth = table.Column<int>(type: "int", nullable: true),
                     CategoryId = table.Column<int>(type: "int", nullable: false),
                     Note = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },

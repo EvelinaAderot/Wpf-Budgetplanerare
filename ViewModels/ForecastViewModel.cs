@@ -33,8 +33,10 @@ namespace Wpf_Budgetplanerare.ViewModels
             _userRepository = userRepository;
 
             RefreshCommand = new AsyncRelayCommand(LoadAsync);
-            LoadAsync();
+
+            _ = LoadAsync(); // explicitly ignored task
         }
+
 
         private async Task LoadAsync()
         {

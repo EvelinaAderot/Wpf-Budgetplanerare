@@ -15,76 +15,27 @@ namespace Wpf_Budgetplanerare.ViewModels
         private readonly BudgetDbContext _db;
         private readonly int _userId;
 
-        /* ---------- Item type ---------- */
+        public ObservableCollection<ItemType> ItemTypes { get; } =
+            new ObservableCollection<ItemType>(Enum.GetValues(typeof(ItemType)).Cast<ItemType>());
 
-        public ObservableCollection<ItemType> ItemTypes { get; }
-            = new(Enum.GetValues(typeof(ItemType)).Cast<ItemType>()
-                    .Where(t => t != ItemType.Income));
+        public ObservableCollection<ItemType> ExpenseEntryItemTypes { get; } =
+            new ObservableCollection<ItemType>(
+        Enum.GetValues(typeof(ItemType))
+            .Cast<ItemType>()
+            .Where(t => t != ItemType.Income)
+            );
 
-        private ItemType _selectedItemType;
-        public ItemType SelectedItemType
-        {
-            get => _selectedItemType;
-            set
-            {
-                if (SetProperty(ref _selectedItemType, value))
-                    LoadCategories();
-            }
-        }
+        public ObservableCollection<RecurrenceType> RecurrenceTypes { get; } =
+            new ObservableCollection<RecurrenceType>(Enum.GetValues(typeof(RecurrenceType)).Cast<RecurrenceType>());
 
-        /* ---------- Categories ---------- */
+        public ObservableCollection<MonthType> MonthTypes { get; } =
+            new ObservableCollection<MonthType>(Enum.GetValues(typeof(MonthType)).Cast<MonthType>());
 
+        public ObservableCollection<Category> AllCategories { get; } = new();
         public ObservableCollection<Category> FilteredCategories { get; } = new();
 
-        private Category? _selectedCategory;
-        public Category? SelectedCategory
-        {
-            get => _selectedCategory;
-            set => SetProperty(ref _selectedCategory, value);
-        }
-
-        private async void LoadCategories()
-        {
-            FilteredCategories.Clear();
-
-            var cats = await _db.Categories
-                .Where(c => c.ItemType == SelectedItemType)
-                .OrderBy(c => c.Name)
-                .ToListAsync();
-
-            foreach (var c in cats)
-                FilteredCategories.Add(c);
-
-            SelectedCategory = FilteredCategories.FirstOrDefault();
-        }
-
-        /* ---------- Dates ---------- */
-
-        public DateTime SelectedDate { get; set; } = DateTime.Today;
-
-        /* ---------- Recurrence ---------- */
-
-        public ObservableCollection<RecurrenceType> RecurrenceTypes { get; }
-            = new(Enum.GetValues(typeof(RecurrenceType)).Cast<RecurrenceType>());
-
-        private RecurrenceType _selectedRecurrenceType = RecurrenceType.Once;
-        public RecurrenceType SelectedRecurrenceType
-        {
-            get => _selectedRecurrenceType;
-            set => SetProperty(ref _selectedRecurrenceType, value);
-        }
-
-        private DateTime? _endMonth;
-        public DateTime? EndMonth
-        {
-            get => _endMonth;
-            set => SetProperty(ref _endMonth, value);
-        }
-
-        /* ---------- Budget source ---------- */
-
-        public ObservableCollection<string> BudgetSources { get; }
-            = new() { "Monthly", "Quarterly", "Yearly" };
+        public ObservableCollection<string> BudgetSources { get; } =
+            new ObservableCollection<string>(new[] { "Monthly", "Quarterly", "Yearly" });
 
         private string _selectedBudgetSource = "Monthly";
         public string SelectedBudgetSource
@@ -93,7 +44,135 @@ namespace Wpf_Budgetplanerare.ViewModels
             set => SetProperty(ref _selectedBudgetSource, value);
         }
 
-        /* ---------- Amount ---------- */
+        private ItemType _selectedItemType = ItemType.Expense;
+        public ItemType SelectedItemType
+        {
+            get => _selectedItemType;
+            set
+            {
+                if (SetProperty(ref _selectedItemType, value))
+                    ApplyCategoryFilter();
+            }
+        }
+
+        private Category? _selectedCategory;
+        public Category? SelectedCategory
+        {
+            get => _selectedCategory;
+            set => SetProperty(ref _selectedCategory, value);
+        }
+
+        private DateTime _selectedDate = DateTime.Today;
+        public DateTime SelectedDate
+        {
+            get => _selectedDate;
+            set
+            {
+                if (SetProperty(ref _selectedDate, value))
+                {
+                    // Keep defaults sane if user changes date
+                    if (SelectedRecurrenceType == RecurrenceType.Monthly)
+                    {
+                        EnsureMonthlyMinEndYear();
+                        EnsureMonthlyEndNotBeforeStart();
+                    }
+                    else if (SelectedRecurrenceType == RecurrenceType.Yearly)
+                    {
+                        EnsureYearlyMinEndYear();
+                    }
+                }
+            }
+        }
+
+        private RecurrenceType _selectedRecurrenceType = RecurrenceType.Once;
+        public RecurrenceType SelectedRecurrenceType
+        {
+            get => _selectedRecurrenceType;
+            set
+            {
+                if (SetProperty(ref _selectedRecurrenceType, value))
+                {
+                    if (_selectedRecurrenceType == RecurrenceType.Monthly)
+                    {
+                        // Monthly: default end = same month/year as selected date
+                        MonthlyEndMonth = (MonthType)SelectedDate.Month;
+                        MonthlyEndYear = SelectedDate.Year;
+                        EnsureMonthlyMinEndYear();
+                        EnsureMonthlyEndNotBeforeStart();
+                    }
+                    else if (_selectedRecurrenceType == RecurrenceType.Yearly)
+                    {
+                        // Yearly: default payment month = selected date month
+                        YearlyPaymentMonth = (MonthType)SelectedDate.Month;
+                        EnsureYearlyMinEndYear();
+                    }
+
+                    OnPropertyChanged(nameof(MonthlyYearMinHint));
+                    OnPropertyChanged(nameof(YearlyYearMinHint));
+                }
+            }
+        }
+
+        // -------------------------
+        // MONTHLY OPTIONS (end month/year)
+        // -------------------------
+        private MonthType _monthlyEndMonth = (MonthType)DateTime.Today.Month;
+        public MonthType MonthlyEndMonth
+        {
+            get => _monthlyEndMonth;
+            set
+            {
+                if (SetProperty(ref _monthlyEndMonth, value))
+                    EnsureMonthlyEndNotBeforeStart();
+            }
+        }
+
+        private int _monthlyEndYear = DateTime.Today.Year;
+        public int MonthlyEndYear
+        {
+            get => _monthlyEndYear;
+            set
+            {
+                var clamped = value < MonthlyMinEndYear ? MonthlyMinEndYear : value;
+                if (SetProperty(ref _monthlyEndYear, clamped))
+                {
+                    EnsureMonthlyEndNotBeforeStart();
+                    OnPropertyChanged(nameof(MonthlyYearMinHint));
+                }
+            }
+        }
+
+        public int MonthlyMinEndYear => SelectedDate.Year;
+        public string MonthlyYearMinHint => $"Min end year: {MonthlyMinEndYear}";
+
+        public ICommand IncreaseMonthlyEndYearCommand { get; }
+        public ICommand DecreaseMonthlyEndYearCommand { get; }
+
+
+        private MonthType _yearlyPaymentMonth = (MonthType)DateTime.Today.Month;
+        public MonthType YearlyPaymentMonth
+        {
+            get => _yearlyPaymentMonth;
+            set => SetProperty(ref _yearlyPaymentMonth, value);
+        }
+
+        private int _yearlyEndYear = DateTime.Today.Year + 1;
+        public int YearlyEndYear
+        {
+            get => _yearlyEndYear;
+            set
+            {
+                var clamped = value < YearlyMinEndYear ? YearlyMinEndYear : value;
+                if (SetProperty(ref _yearlyEndYear, clamped))
+                    OnPropertyChanged(nameof(YearlyYearMinHint));
+            }
+        }
+
+        public int YearlyMinEndYear => DateTime.Today.Year + 1;
+        public string YearlyYearMinHint => $"Min end year: {YearlyMinEndYear}";
+
+        public ICommand IncreaseYearlyEndYearCommand { get; }
+        public ICommand DecreaseYearlyEndYearCommand { get; }
 
         private decimal _amount;
         public decimal Amount
@@ -102,7 +181,12 @@ namespace Wpf_Budgetplanerare.ViewModels
             set => SetProperty(ref _amount, value);
         }
 
-        /* ---------- Commands ---------- */
+        private string? _note;
+        public string? Note
+        {
+            get => _note;
+            set => SetProperty(ref _note, value);
+        }
 
         public ICommand SaveCommand { get; }
 
@@ -111,81 +195,143 @@ namespace Wpf_Budgetplanerare.ViewModels
             _db = db;
             _userId = userId;
 
+            IncreaseMonthlyEndYearCommand = new RelayCommand(() => MonthlyEndYear = MonthlyEndYear + 1);
+            DecreaseMonthlyEndYearCommand = new RelayCommand(() => MonthlyEndYear = MonthlyEndYear - 1);
+
+            IncreaseYearlyEndYearCommand = new RelayCommand(() => YearlyEndYear = YearlyEndYear + 1);
+            DecreaseYearlyEndYearCommand = new RelayCommand(() => YearlyEndYear = YearlyEndYear - 1);
+
             SaveCommand = new RelayCommand(async () => await SaveAsync());
 
-            SelectedItemType = ItemType.Expense;
+            EnsureMonthlyMinEndYear();
+            EnsureYearlyMinEndYear();
+
+            _ = LoadCategoriesAsync();
         }
 
-        /* ---------- Save logic ---------- */
+        private async Task LoadCategoriesAsync()
+        {
+            AllCategories.Clear();
+            FilteredCategories.Clear();
+
+            var cats = await _db.Categories
+                .OrderBy(c => c.ItemType)
+                .ThenBy(c => c.Name)
+                .ToListAsync();
+
+            foreach (var c in cats)
+                AllCategories.Add(c);
+
+            ApplyCategoryFilter();
+        }
+
+        private void ApplyCategoryFilter()
+        {
+            FilteredCategories.Clear();
+
+            var filtered = AllCategories
+                .Where(c => c.ItemType == SelectedItemType)
+                .OrderBy(c => c.Name)
+                .ToList();
+
+            foreach (var c in filtered)
+                FilteredCategories.Add(c);
+
+            if (SelectedCategory == null || SelectedCategory.ItemType != SelectedItemType)
+                SelectedCategory = FilteredCategories.FirstOrDefault();
+        }
+
+        private void EnsureMonthlyMinEndYear()
+        {
+            if (MonthlyEndYear < MonthlyMinEndYear)
+                MonthlyEndYear = MonthlyMinEndYear;
+        }
+
+        private void EnsureYearlyMinEndYear()
+        {
+            if (YearlyEndYear < YearlyMinEndYear)
+                YearlyEndYear = YearlyMinEndYear;
+        }
+
+  
+        private void EnsureMonthlyEndNotBeforeStart()
+        {
+            var startMonth = SelectedDate.Month;
+
+            if (MonthlyEndYear == SelectedDate.Year && (int)MonthlyEndMonth < startMonth)
+            {
+                MonthlyEndYear = SelectedDate.Year + 1;
+            }
+        }
 
         private async Task SaveAsync()
         {
-            if (Amount <= 0 || SelectedCategory == null)
+            if (SelectedCategory == null)
+                return;
+
+            if (Amount <= 0m)
                 return;
 
             var item = new Item
             {
                 UserId = _userId,
-                Amount = Amount,
-                PostingDate = DateTime.Today,
-                TransactionDate = SelectedDate,
+                CategoryId = SelectedCategory.Id,
                 ItemType = SelectedItemType,
                 RecurrenceType = SelectedRecurrenceType,
-                CategoryId = SelectedCategory.Id,
-                YearlyMonth = SelectedRecurrenceType == RecurrenceType.Yearly
-                    ? (MonthType?)SelectedDate.Month
-                    : null
+                TransactionDate = SelectedDate.Date,
+                PostingDate = DateTime.Today,
+                Amount = Amount,
+                Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim()
             };
+
+            if (SelectedRecurrenceType == RecurrenceType.Monthly)
+            {
+                EnsureMonthlyMinEndYear();
+                EnsureMonthlyEndNotBeforeStart();
+
+                item.MonthlyEndMonth = MonthlyEndMonth;
+                item.MonthlyEndYear = MonthlyEndYear;
+
+                item.YearlyMonth = null;
+                item.YearlyEndYear = null;
+            }
+            else if (SelectedRecurrenceType == RecurrenceType.Yearly)
+            {
+                EnsureYearlyMinEndYear();
+
+                item.YearlyMonth = YearlyPaymentMonth;
+                item.YearlyEndYear = YearlyEndYear;
+
+                item.MonthlyEndMonth = null;
+                item.MonthlyEndYear = null;
+            }
+            else
+            {
+                item.MonthlyEndMonth = null;
+                item.MonthlyEndYear = null;
+                item.YearlyMonth = null;
+                item.YearlyEndYear = null;
+            }
 
             _db.Items.Add(item);
-
-            // 🔻 Deduct from selected budget
-            await DeductFromBudgetAsync(SelectedBudgetSource, Amount);
-
             await _db.SaveChangesAsync();
 
-            ResetForm();
-        }
-
-        /* ---------- Budget deduction ---------- */
-
-        private async Task DeductFromBudgetAsync(string source, decimal amount)
-        {
-            var today = DateTime.Today;
-            DateTime periodStart = source switch
-            {
-                "Monthly" => new DateTime(today.Year, today.Month, 1),
-                "Quarterly" => new DateTime(today.Year, ((today.Month - 1) / 3) * 3 + 1, 1),
-                "Yearly" => new DateTime(today.Year, 1, 1),
-                _ => today
-            };
-
-            var plan = await _db.BudgetPlans
-                .FirstOrDefaultAsync(p => p.UserId == _userId && p.Month == periodStart);
-
-            if (plan == null)
-                return;
-
-            switch (source)
-            {
-                case "Monthly":
-                    plan.MonthlyBudget -= amount;
-                    break;
-                case "Quarterly":
-                    plan.QuarterlyBudget -= amount;
-                    break;
-                case "Yearly":
-                    plan.YearlyBudget -= amount;
-                    break;
-            }
-        }
-
-        private void ResetForm()
-        {
-            Amount = 0;
+            Amount = 0m;
+            Note = null;
             SelectedDate = DateTime.Today;
-            SelectedRecurrenceType = RecurrenceType.Once;
-            EndMonth = null;
+
+            if (SelectedRecurrenceType == RecurrenceType.Monthly)
+            {
+                MonthlyEndMonth = (MonthType)SelectedDate.Month;
+                MonthlyEndYear = SelectedDate.Year;
+                EnsureMonthlyMinEndYear();
+                EnsureMonthlyEndNotBeforeStart();
+            }
+            else if (SelectedRecurrenceType == RecurrenceType.Yearly)
+            {
+                YearlyPaymentMonth = (MonthType)SelectedDate.Month;
+                EnsureYearlyMinEndYear();
+            }
         }
     }
 }
