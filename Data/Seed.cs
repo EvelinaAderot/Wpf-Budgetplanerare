@@ -5,8 +5,10 @@ namespace Wpf_Budgetplanerare.Data.Seed
 {
     public static class Seed
     {
+
         public static void Initialize(BudgetDbContext context)
         {
+
             context.Database.EnsureCreated();
 
             if (!context.Users.Any())
@@ -60,6 +62,8 @@ namespace Wpf_Budgetplanerare.Data.Seed
                     new Category { Name = "Annuiteter", ItemType = ItemType.Expense },
                     new Category { Name = "Abonnemang", ItemType = ItemType.Expense },
                     new Category { Name = "Övrigt", ItemType = ItemType.Expense },
+                    new Category { Name = "Skönhet", ItemType = ItemType.Expense },
+                    new Category { Name = "Skatt", ItemType = ItemType.Expense },
 
                     // Savings
                     new Category { Name = "Resa", ItemType = ItemType.Savings },

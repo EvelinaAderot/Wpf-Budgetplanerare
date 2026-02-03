@@ -31,5 +31,30 @@ namespace Wpf_Budgetplanerare.Views
                 }
             }
         }
+
+        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn)
+                return;
+
+            if (btn.DataContext is not TransactionRowVM row)
+                return;
+
+            var result = MessageBox.Show(
+                $"Are you sure you want to delete this transaction?\n\n" +
+                $"{row.CategoryName}\n{row.TransactionDate:yyyy-MM-dd}\n{row.Amount:N2} kr",
+                "Confirm delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            if (DataContext is TransactionsTableViewModel vm)
+            {
+                vm.DeleteTransaction(row);
+            }
+        }
     }
 }
+

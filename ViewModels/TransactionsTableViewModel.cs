@@ -25,13 +25,13 @@ namespace Wpf_Budgetplanerare.ViewModels
 
         private void Load()
         {
-            // NOTE:
-            // PostingDate is NOT nullable in your model (DateTime), so checking != null is unnecessary.
-            // This loads ALL items for the user and shows them in the table.
+            var today = DateTime.Today;
+
             var items = _db.Items
                 .AsNoTracking()
                 .Include(i => i.Category)
-                .Where(i => i.UserId == _userId)
+                .Where(i => i.UserId == _userId &&
+                            i.TransactionDate.Date <= today)
                 .OrderByDescending(i => i.TransactionDate)
                 .ToList();
 
@@ -41,6 +41,7 @@ namespace Wpf_Budgetplanerare.ViewModels
             {
                 Transactions.Add(new TransactionRowVM
                 {
+                    Id = i.Id,
                     CategoryName = i.Category?.Name ?? "",
                     ItemType = i.ItemType.ToString(),
                     TransactionDate = i.TransactionDate,
@@ -48,14 +49,24 @@ namespace Wpf_Budgetplanerare.ViewModels
                     Note = i.Note
                 });
             }
+        }
 
-            // Optional debug (remove later)
-            // System.Diagnostics.Debug.WriteLine($"Loaded transactions: {Transactions.Count} (user {_userId})");
+        public void DeleteTransaction(TransactionRowVM row)
+        {
+            var entity = _db.Items.FirstOrDefault(i => i.Id == row.Id);
+            if (entity == null)
+                return;
+
+            _db.Items.Remove(entity);
+            _db.SaveChanges();
+
+            Transactions.Remove(row);
         }
     }
 
     public class TransactionRowVM
     {
+        public int Id { get; set; }
         public string CategoryName { get; set; } = "";
         public string ItemType { get; set; } = "";
         public DateTime TransactionDate { get; set; }

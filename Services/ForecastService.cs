@@ -8,68 +8,66 @@ using Wpf_Budgetplanerare.Models;
 using Wpf_Budgetplanerare.Services.ModelServices;
 
 namespace Wpf_Budgetplanerare.Services
+{
+
+    public class ForecastService
     {
+        private readonly IItemRepository _itemRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IAbsenceRepository _absenceRepository;
+        private readonly SalaryCalculationService _salaryService;
+        private readonly RecurrenceService _recurrenceService;
 
-        public class ForecastService
+        public ForecastService(
+            IItemRepository itemRepository,
+            IUserRepository userRepository,
+            IAbsenceRepository absenceRepository,
+            SalaryCalculationService salaryService,
+            RecurrenceService recurrenceService)
         {
-            private readonly IItemRepository _itemRepository;
-            private readonly IUserRepository _userRepository;
-            private readonly IAbsenceRepository _absenceRepository;
-            private readonly SalaryCalculationService _salaryService;
-            private readonly RecurrenceService _recurrenceService;
+            _itemRepository = itemRepository;
+            _userRepository = userRepository;
+            _absenceRepository = absenceRepository;
+            _salaryService = salaryService;
+            _recurrenceService = recurrenceService;
+        }
 
-            public ForecastService(
-                IItemRepository itemRepository,
-                IUserRepository userRepository,
-                IAbsenceRepository absenceRepository,
-                SalaryCalculationService salaryService,
-                RecurrenceService recurrenceService)
+        public async Task<ForecastResult> BuildMonthlyForecastAsync(int userId, int year, int month)
+        {
+            var user = await _userRepository.GetByIdAsync(userId)
+                       ?? throw new InvalidOperationException($"User {userId} not found.");
+
+            var items = await _itemRepository.GetByUserIdAndMonthAsync(userId, year, month);
+
+            items = items.Where(i => _recurrenceService.AppliesToMonth(i, year, month)).ToList();
+
+            var absences = await _absenceRepository.GetByUserIdAndMonthAsync(userId, year, month);
+
+            var totalIncome = items.Where(i => i.ItemType == ItemType.Income).Sum(i => i.Amount);
+            var totalExpenses = items.Where(i => i.ItemType == ItemType.Expense).Sum(i => i.Amount);
+
+
+            var totalSavings = items.Where(i => i.ItemType == ItemType.Savings).Sum(i => i.Amount);
+
+            var salaryImpact = _salaryService.CalculateMonthlyImpact(user, absences, year, month);
+
+            var balance =
+                totalIncome
+                - totalExpenses
+                - totalSavings
+                + salaryImpact.NetImpact;
+
+            return new ForecastResult
             {
-                _itemRepository = itemRepository;
-                _userRepository = userRepository;
-                _absenceRepository = absenceRepository;
-                _salaryService = salaryService;
-                _recurrenceService = recurrenceService;
-            }
-
-            public async Task<ForecastResult> BuildMonthlyForecastAsync(int userId, int year, int month)
-            {
-                var user = await _userRepository.GetByIdAsync(userId)
-                           ?? throw new InvalidOperationException($"User {userId} not found.");
-
-                // Items: repo-metoden tar redan hänsyn till monthly/yearly/once för given månad
-                var items = await _itemRepository.GetByUserIdAndMonthAsync(userId, year, month);
-
-                // Extra säkerhet: om du vill dubbelkolla recurrence-regeln
-                items = items.Where(i => _recurrenceService.AppliesToMonth(i, year, month)).ToList();
-
-                var absences = await _absenceRepository.GetByUserIdAndMonthAsync(userId, year, month);
-
-                var totalIncome = items.Where(i => i.ItemType == ItemType.Income).Sum(i => i.Amount);
-                var totalExpenses = items.Where(i => i.ItemType == ItemType.Expense).Sum(i => i.Amount);
-
-
-                var totalSavings = items.Where(i => i.ItemType == ItemType.Savings).Sum(i => i.Amount);
-
-                var salaryImpact = _salaryService.CalculateMonthlyImpact(user, absences, year, month);
-
-                var balance =
-                    totalIncome
-                    - totalExpenses
-                    - totalSavings
-                    + salaryImpact.NetImpact;
-
-                return new ForecastResult
-                {
-                    Year = year,
-                    Month = month,
-                    TotalIncome = totalIncome,
-                    TotalExpenses = totalExpenses,
-                    TotalSavings = totalSavings,
-                    SalaryImpact = salaryImpact,
-                    Balance = balance
-                };
-            }
+                Year = year,
+                Month = month,
+                TotalIncome = totalIncome,
+                TotalExpenses = totalExpenses,
+                TotalSavings = totalSavings,
+                SalaryImpact = salaryImpact,
+                Balance = balance
+            };
         }
     }
+}
 

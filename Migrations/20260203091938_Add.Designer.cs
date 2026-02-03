@@ -12,8 +12,8 @@ using Wpf_Budgetplanerare.Data;
 namespace Wpf_Budgetplanerare.Migrations
 {
     [DbContext(typeof(BudgetDbContext))]
-    [Migration("20260202123652_A")]
-    partial class A
+    [Migration("20260203091938_Add")]
+    partial class Add
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

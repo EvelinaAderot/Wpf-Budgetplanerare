@@ -378,12 +378,12 @@ namespace Wpf_Budgetplanerare.Views
 
             Loaded -= BudgetDashboard_Loaded;
 
-            try { _progressVm?.Dispose(); } catch { /* ignore */ }
+            try { _progressVm?.Dispose(); } catch { }
             _progressVm = null;
 
-            try { _monthlyVm?.Dispose(); } catch { /* ignore */ }
-            try { _quarterlyVm?.Dispose(); } catch { /* ignore */ }
-            try { _yearlyVm?.Dispose(); } catch { /* ignore */ }
+            try { _monthlyVm?.Dispose(); } catch { }
+            try { _quarterlyVm?.Dispose(); } catch { }
+            try { _yearlyVm?.Dispose(); } catch { }
             _monthlyVm = null;
             _quarterlyVm = null;
             _yearlyVm = null;

@@ -108,8 +108,6 @@ namespace Wpf_Budgetplanerare.ViewModels
             catch { }
         }
 
-        // ---------------- DISPLAY PROPERTIES ----------------
-
         public string HeaderText => _periodKind switch
         {
             BudgetPeriodKind.Monthly => "Budget progress (Monthly)",
@@ -183,8 +181,6 @@ namespace Wpf_Budgetplanerare.ViewModels
             OnPropertyChanged(nameof(ProgressBrush));
         }
 
-        // ---------------- CORE LOGIC ----------------
-
         private async Task ReloadAsync(CancellationToken ct)
         {
             await _opGate.WaitAsync(ct);
@@ -194,13 +190,17 @@ namespace Wpf_Budgetplanerare.ViewModels
                 _index = 0;
 
                 var start = GetPeriodStart();
-                var end = _periodKind switch
+                var periodEnd = _periodKind switch
                 {
                     BudgetPeriodKind.Monthly => start.AddMonths(1),
                     BudgetPeriodKind.Quarterly => start.AddMonths(3),
                     BudgetPeriodKind.Yearly => start.AddYears(1),
                     _ => start.AddMonths(1)
                 };
+
+
+                var today = DateTime.Today;
+                var spentEndExclusive = periodEnd <= today.AddDays(1) ? periodEnd : today.AddDays(1);
 
                 await using var db = _dbFactory();
 
@@ -210,14 +210,14 @@ namespace Wpf_Budgetplanerare.ViewModels
                                 b.Category != null &&
                                 (b.Category.ItemType == ItemType.Expense ||
                                  b.Category.ItemType == ItemType.Savings) &&
-                                b.Month >= start && b.Month < end)
+                                b.Month >= start && b.Month < periodEnd)
                     .ToListAsync(ct);
 
                 var items = await db.Items
                     .Include(i => i.Category)
                     .Where(i => i.UserId == _userId &&
                                 i.TransactionDate >= start &&
-                                i.TransactionDate < end &&
+                                i.TransactionDate < spentEndExclusive &&   // <-- changed
                                 (i.ItemType == ItemType.Expense ||
                                  i.ItemType == ItemType.Savings))
                     .ToListAsync(ct);

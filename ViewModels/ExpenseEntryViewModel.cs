@@ -272,66 +272,144 @@ namespace Wpf_Budgetplanerare.ViewModels
             if (Amount <= 0m)
                 return;
 
-            var item = new Item
-            {
-                UserId = _userId,
-                CategoryId = SelectedCategory.Id,
-                ItemType = SelectedItemType,
-                RecurrenceType = SelectedRecurrenceType,
-                TransactionDate = SelectedDate.Date,
-                PostingDate = DateTime.Today,
-                Amount = Amount,
-                Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim()
-            };
+            var baseNote = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim();
+            var postingDate = DateTime.Today;
 
+            // -------------------------
+            // MONTHLY => skapa en rad per månad
+            // -------------------------
             if (SelectedRecurrenceType == RecurrenceType.Monthly)
             {
                 EnsureMonthlyMinEndYear();
                 EnsureMonthlyEndNotBeforeStart();
 
-                item.MonthlyEndMonth = MonthlyEndMonth;
-                item.MonthlyEndYear = MonthlyEndYear;
+                var start = new DateTime(SelectedDate.Year, SelectedDate.Month, 1);
+                var end = new DateTime(MonthlyEndYear, (int)MonthlyEndMonth, 1);
 
-                item.YearlyMonth = null;
-                item.YearlyEndYear = null;
+                var month = start;
+                while (month <= end)
+                {
+                    var item = new Item
+                    {
+                        UserId = _userId,
+                        CategoryId = SelectedCategory.Id,
+                        ItemType = SelectedItemType,
+                        RecurrenceType = RecurrenceType.Once,
+                        TransactionDate = month.Date,
+                        PostingDate = postingDate,
+                        Amount = Amount,
+                        Note = baseNote,
+
+                        MonthlyEndMonth = null,
+                        MonthlyEndYear = null,
+                        YearlyMonth = null,
+                        YearlyEndYear = null
+                    };
+
+                    _db.Items.Add(item);
+                    month = month.AddMonths(1);
+                }
+
+                await _db.SaveChangesAsync();
+
+                Amount = 0m;
+                Note = null;
+                SelectedDate = DateTime.Today;
+
+                MonthlyEndMonth = (MonthType)SelectedDate.Month;
+                MonthlyEndYear = SelectedDate.Year;
+                EnsureMonthlyMinEndYear();
+                EnsureMonthlyEndNotBeforeStart();
+
+                return;
             }
-            else if (SelectedRecurrenceType == RecurrenceType.Yearly)
+
+            // -------------------------
+            // YEARLY => skapa en rad per år
+            // -------------------------
+            if (SelectedRecurrenceType == RecurrenceType.Yearly)
             {
                 EnsureYearlyMinEndYear();
 
-                item.YearlyMonth = YearlyPaymentMonth;
-                item.YearlyEndYear = YearlyEndYear;
+                // Startår: från vald "SelectedDate"
+                var startYear = SelectedDate.Year;
+                var endYear = YearlyEndYear;
 
-                item.MonthlyEndMonth = null;
-                item.MonthlyEndYear = null;
+                // Betalningsmånad: YearlyPaymentMonth
+                var paymentMonth = (int)YearlyPaymentMonth;
+
+                for (int year = startYear; year <= endYear; year++)
+                {
+                    var transactionDate = new DateTime(year, paymentMonth, 1);
+
+                    // Om du vill vara extra strikt:
+                    // - hoppa över om transactionDate är före SelectedDate (t.ex. om SelectedDate är senare samma år)
+                    // I ditt UI sätter du ofta YearlyPaymentMonth = SelectedDate.Month,
+                    // men användaren kan ändra den, så detta skyddar mot "tidigare än start".
+                    if (transactionDate.Date < new DateTime(SelectedDate.Year, SelectedDate.Month, 1))
+                        continue;
+
+                    var item = new Item
+                    {
+                        UserId = _userId,
+                        CategoryId = SelectedCategory.Id,
+                        ItemType = SelectedItemType,
+                        RecurrenceType = RecurrenceType.Once,
+                        TransactionDate = transactionDate.Date,
+                        PostingDate = postingDate,
+                        Amount = Amount,
+                        Note = baseNote,
+
+                        MonthlyEndMonth = null,
+                        MonthlyEndYear = null,
+                        YearlyMonth = null,
+                        YearlyEndYear = null
+                    };
+
+                    _db.Items.Add(item);
+                }
+
+                await _db.SaveChangesAsync();
+
+                Amount = 0m;
+                Note = null;
+                SelectedDate = DateTime.Today;
+
+                YearlyPaymentMonth = (MonthType)SelectedDate.Month;
+                EnsureYearlyMinEndYear();
+
+                return;
             }
-            else
+
+            // -------------------------
+            // ONCE => som tidigare, en rad
+            // -------------------------
+            var singleItem = new Item
             {
-                item.MonthlyEndMonth = null;
-                item.MonthlyEndYear = null;
-                item.YearlyMonth = null;
-                item.YearlyEndYear = null;
-            }
+                UserId = _userId,
+                CategoryId = SelectedCategory.Id,
+                ItemType = SelectedItemType,
+                RecurrenceType = RecurrenceType.Once,
+                TransactionDate = SelectedDate.Date,
+                PostingDate = postingDate,
+                Amount = Amount,
+                Note = baseNote,
 
-            _db.Items.Add(item);
+                MonthlyEndMonth = null,
+                MonthlyEndYear = null,
+                YearlyMonth = null,
+                YearlyEndYear = null
+            };
+
+            _db.Items.Add(singleItem);
             await _db.SaveChangesAsync();
 
             Amount = 0m;
             Note = null;
             SelectedDate = DateTime.Today;
-
-            if (SelectedRecurrenceType == RecurrenceType.Monthly)
-            {
-                MonthlyEndMonth = (MonthType)SelectedDate.Month;
-                MonthlyEndYear = SelectedDate.Year;
-                EnsureMonthlyMinEndYear();
-                EnsureMonthlyEndNotBeforeStart();
-            }
-            else if (SelectedRecurrenceType == RecurrenceType.Yearly)
-            {
-                YearlyPaymentMonth = (MonthType)SelectedDate.Month;
-                EnsureYearlyMinEndYear();
-            }
         }
+
     }
 }
+
+
